@@ -105,7 +105,15 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         // --- Configuração Automática ---
-        const firebaseConfig = JSON.parse(__firebase_config);
+        const firebaseConfig = {
+    apiKey: "AIzaSyBhN27-EhwsZ0YZYK4WIu49Bnr9e3RhvHs",
+    authDomain: "calc-5d61c.firebaseapp.com",
+    projectId: "calc-5d61c",
+    storageBucket: "calc-5d61c.firebasestorage.app",
+    messagingSenderId: "1036223426623",
+    appId: "1:1036223426623:web:5caee5c6f96394c271088a",
+    measurementId: "G-RVYXT9753B"
+  };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
