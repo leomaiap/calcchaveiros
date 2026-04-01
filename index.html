@@ -27,7 +27,7 @@
             <h3 class="text-lg font-bold text-center mb-2">Anular Operação?</h3>
             <p class="text-slate-400 text-sm text-center mb-6">O estoque e faturamento serão corrigidos em todos os dispositivos.</p>
             <div class="grid grid-cols-2 gap-3">
-                <button onclick="closeModal()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-colors">Voltar</button>
+                <button onclick="window.closeModal()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-colors">Voltar</button>
                 <button id="btn-confirm-delete" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-colors">Confirmar</button>
             </div>
         </div>
@@ -67,7 +67,7 @@
                 <h2 class="text-xs font-black uppercase tracking-widest">Registar Venda (Pix)</h2>
             </div>
             <div class="grid grid-cols-3 gap-3" id="vendas-grid">
-                <!-- Botões de venda via JS -->
+                <!-- Botões gerados via JavaScript -->
             </div>
         </section>
 
@@ -79,7 +79,7 @@
             </div>
             <div class="flex gap-3">
                 <input type="number" id="input-reposicao" value="18" class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4 text-white font-black text-xl outline-none focus:ring-2 focus:ring-orange-500 transition-all">
-                <button onclick="handleReposicao()" class="bg-orange-500 hover:bg-orange-600 text-white font-black px-8 rounded-2xl shadow-lg active:scale-95 transition-all">
+                <button onclick="window.handleReposicao()" class="bg-orange-500 hover:bg-orange-600 text-white font-black px-8 rounded-2xl shadow-lg active:scale-95 transition-all">
                     <i data-lucide="plus"></i>
                 </button>
             </div>
@@ -89,7 +89,7 @@
         <section class="bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl border border-slate-800">
             <h2 class="text-xs font-black uppercase tracking-widest text-slate-300 mb-6">Histórico em Tempo Real</h2>
             <div id="logs-container" class="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
-                <!-- Logs via JS -->
+                <p class="text-center text-slate-700 py-10 italic text-sm">Carregando dados...</p>
             </div>
             <div class="mt-10 pt-8 border-t border-slate-800/50 text-center text-slate-600">
                 <p class="text-[10px] font-black uppercase tracking-widest mb-1">Produção Total</p>
@@ -104,10 +104,10 @@
         import { getFirestore, doc, setDoc, addDoc, onSnapshot, updateDoc, deleteDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        // --- ATENÇÃO: CONFIGURAÇÃO PARA GITHUB PAGES ---
-        // Se estiver no GitHub Pages, substitua {} pelas suas chaves do Firebase Console.
+        // --- Configurações ---
         let firebaseConfig;
         try {
+            // Tenta usar config do ambiente Gemini (Canvas)
             firebaseConfig = {
     apiKey: "AIzaSyBhN27-EhwsZ0YZYK4WIu49Bnr9e3RhvHs",
     authDomain: "calc-5d61c.firebaseapp.com",
@@ -118,7 +118,7 @@
     measurementId: "G-RVYXT9753B"
   };
         } catch (e) {
-            // Cole aqui seu objeto firebaseConfig do console do Firebase se for usar fora deste chat
+            // SUBSTITUA PELAS SUAS CHAVES REAIS DO FIREBASE CONSOLE PARA FUNCIONAR NO GITHUB PAGES
             firebaseConfig = {
     apiKey: "AIzaSyBhN27-EhwsZ0YZYK4WIu49Bnr9e3RhvHs",
     authDomain: "calc-5d61c.firebaseapp.com",
@@ -130,68 +130,121 @@
   };
         }
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        
-        // Regra de Ouro: Para sincronizar PC e Celular, usamos o caminho 'public/data'
+        let db, auth;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexus-3d-uff';
         const PUBLIC_PATH = ['artifacts', appId, 'public', 'data'];
-
         let state = { atual: 0, faturamento: 0, totalProduzido: 0 };
-        let isAuthenticated = false;
+        let currentUser = null;
 
-        // Autenticação
-        const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
+        // Inicializa Firebase apenas se a chave não for a placeholder
+        const isConfigValid = firebaseConfig.apiKey && firebaseConfig.apiKey !== "SUA_API_KEY";
+
+        if (isConfigValid) {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    initData();
                 } else {
-                    await signInAnonymously(auth);
+                    signInAnonymously(auth).catch(err => console.error("Erro Auth:", err));
                 }
-            } catch (err) {
-                console.error("Erro Auth:", err);
+            });
+        } else {
+            console.warn("Firebase não configurado. Use chaves reais para persistência.");
+            document.getElementById('logs-container').innerHTML = '<p class="text-center text-red-500 py-10 text-xs font-bold uppercase">Erro: Firebase não configurado</p>';
+        }
+
+        // --- Funções Globais (Expostas para o HTML) ---
+        
+        window.handleVenda = async (valor) => {
+            if (!currentUser) return showToast("Aguardando conexão...", "bg-yellow-500");
+            const qtd = valor >= 18 ? Math.floor(valor / 6) : Math.floor(valor / 7);
+            if (state.atual < qtd) return showToast("Sem estoque!", "bg-red-500");
+
+            try {
+                const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
+                await updateDoc(invRef, { atual: state.atual - qtd, faturamento: state.faturamento + valor });
+                await addDoc(collection(db, ...PUBLIC_PATH, 'logs'), {
+                    tipo: 'VENDA', qtd, valor, timestamp: serverTimestamp()
+                });
+                showToast("Venda Sincronizada!", "bg-green-500");
+            } catch (e) {
+                console.error(e);
+                showToast("Erro ao salvar", "bg-red-500");
             }
         };
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                isAuthenticated = true;
-                initData();
-            } else {
-                initAuth();
+        window.handleReposicao = async () => {
+            if (!currentUser) return showToast("Aguardando conexão...", "bg-yellow-500");
+            const input = document.getElementById('input-reposicao');
+            const qtd = Number(input.value);
+            if (qtd <= 0) return;
+
+            try {
+                const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
+                await updateDoc(invRef, { atual: state.atual + qtd, totalProduzido: state.totalProduzido + qtd });
+                await addDoc(collection(db, ...PUBLIC_PATH, 'logs'), {
+                    tipo: 'REPOSICAO', qtd, timestamp: serverTimestamp()
+                });
+                showToast("Estoque Atualizado!", "bg-orange-500");
+            } catch (e) {
+                showToast("Erro ao salvar", "bg-red-500");
             }
-        });
+        };
+
+        window.confirmDeleteLog = (id, tipo, qtd, valor) => {
+            const modal = document.getElementById('modal-confirm');
+            modal.classList.remove('hidden');
+            document.getElementById('btn-confirm-delete').onclick = () => deleteLog(id, tipo, qtd, valor);
+        };
+
+        window.closeModal = () => document.getElementById('modal-confirm').classList.add('hidden');
+
+        async function deleteLog(id, tipo, qtd, valor) {
+            if (!currentUser) return;
+            try {
+                const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
+                const logRef = doc(db, ...PUBLIC_PATH, 'logs', id);
+                
+                let update = { ...state };
+                if (tipo === 'VENDA') { update.atual += qtd; update.faturamento -= valor; }
+                else { update.atual -= qtd; update.totalProduzido -= qtd; }
+
+                await updateDoc(invRef, update);
+                await deleteDoc(logRef);
+                closeModal();
+                showToast("Registro Removido!", "bg-blue-500");
+            } catch (e) {
+                showToast("Erro ao deletar", "bg-red-500");
+            }
+        }
+
+        // --- Core ---
 
         function initData() {
-            if (!isAuthenticated) return;
-
-            // Sincronização Global (PC e Celular usam o mesmo documento)
             const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
             const logsRef = collection(db, ...PUBLIC_PATH, 'logs');
 
-            // Escutar Inventário
             onSnapshot(invRef, (snap) => {
                 if (snap.exists()) {
                     state = snap.data();
                     renderStats();
                 } else {
-                    // Inicialização padrão
                     setDoc(invRef, { atual: 51, totalProduzido: 51, faturamento: 0 });
                 }
-            }, (err) => console.error("Erro snapshot inv:", err));
+            });
 
-            // Escutar Logs
             onSnapshot(logsRef, (snap) => {
                 const logs = [];
                 snap.forEach(d => logs.push({ id: d.id, ...d.data() }));
-                // Ordenar por data (Regra 2)
                 logs.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                 renderLogs(logs.slice(0, 30));
-            }, (err) => console.error("Erro snapshot logs:", err));
+            });
         }
 
-        // --- Funções de UI ---
         function renderStats() {
             document.getElementById('display-estoque').innerText = state.atual;
             document.getElementById('display-faturamento').innerText = state.faturamento;
@@ -200,7 +253,7 @@
 
         function renderLogs(logs) {
             const container = document.getElementById('logs-container');
-            container.innerHTML = logs.length ? '' : '<p class="text-center text-slate-700 py-10 italic text-sm">Aguardando vendas...</p>';
+            container.innerHTML = logs.length ? '' : '<p class="text-center text-slate-700 py-10 italic text-sm">Sem vendas registradas.</p>';
             
             logs.forEach(log => {
                 const date = log.timestamp?.toDate() ? log.timestamp.toDate().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '--:--';
@@ -228,55 +281,6 @@
             lucide.createIcons();
         }
 
-        // --- Ações ---
-        window.handleVenda = async (valor) => {
-            if (!isAuthenticated) return;
-            const qtd = valor >= 18 ? Math.floor(valor / 6) : Math.floor(valor / 7);
-            if (state.atual < qtd) return showToast("Sem estoque!", "bg-red-500");
-
-            const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
-            await updateDoc(invRef, { atual: state.atual - qtd, faturamento: state.faturamento + valor });
-            await addDoc(collection(db, ...PUBLIC_PATH, 'logs'), {
-                tipo: 'VENDA', qtd, valor, timestamp: serverTimestamp()
-            });
-            showToast("Venda Sincronizada!", "bg-green-500");
-        };
-
-        window.handleReposicao = async () => {
-            if (!isAuthenticated) return;
-            const qtd = Number(document.getElementById('input-reposicao').value);
-            if(qtd <= 0) return;
-            const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
-            await updateDoc(invRef, { atual: state.atual + qtd, totalProduzido: state.totalProduzido + qtd });
-            await addDoc(collection(db, ...PUBLIC_PATH, 'logs'), {
-                tipo: 'REPOSICAO', qtd, timestamp: serverTimestamp()
-            });
-            showToast("Estoque Atualizado!", "bg-orange-500");
-        };
-
-        window.confirmDeleteLog = (id, tipo, qtd, valor) => {
-            const modal = document.getElementById('modal-confirm');
-            modal.classList.remove('hidden');
-            document.getElementById('btn-confirm-delete').onclick = () => deleteLog(id, tipo, qtd, valor);
-        };
-
-        async function deleteLog(id, tipo, qtd, valor) {
-            if (!isAuthenticated) return;
-            const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
-            const logRef = doc(db, ...PUBLIC_PATH, 'logs', id);
-            
-            let update = { ...state };
-            if (tipo === 'VENDA') { update.atual += qtd; update.faturamento -= valor; }
-            else { update.atual -= qtd; update.totalProduzido -= qtd; }
-
-            await updateDoc(invRef, update);
-            await deleteDoc(logRef);
-            closeModal();
-            showToast("Alteração desfeita!", "bg-blue-500");
-        }
-
-        window.closeModal = () => document.getElementById('modal-confirm').classList.add('hidden');
-
         function showToast(text, bgColor) {
             const toast = document.getElementById('toast');
             const textEl = document.getElementById('toast-text');
@@ -286,17 +290,19 @@
             setTimeout(() => toast.classList.add('hidden'), 3000);
         }
 
-        // Renderização dos Botões
+        // Criar botões de venda
         const grid = document.getElementById('vendas-grid');
         [7, 14, 18, 24, 30, 36].forEach(v => {
             const btn = document.createElement('button');
-            btn.onclick = () => handleVenda(v);
+            btn.type = "button";
+            btn.onclick = () => window.handleVenda(v);
             btn.className = "group relative flex flex-col items-center justify-center bg-slate-800 hover:bg-blue-600 border border-slate-700 py-5 rounded-2xl transition-all active:scale-95";
             btn.innerHTML = `<span class="text-[10px] text-slate-500 group-hover:text-blue-200 font-black mb-1">R$</span><span class="text-2xl font-black group-hover:text-white leading-none">${v}</span>`;
-            if(v >= 18) btn.innerHTML += `<span class="absolute -top-2 left-1/2 -translate-x-1/2 bg-blue-500 text-[8px] font-black px-2 py-0.5 rounded-full text-white shadow-lg">COMBO</span>`;
+            if(v >= 18) btn.innerHTML += `<span class="absolute -top-2 left-1/2 -translate-x-1/2 bg-blue-500 text-[8px] font-black px-2 py-0.5 rounded-full text-white shadow-lg uppercase">Combo</span>`;
             grid.appendChild(btn);
         });
         lucide.createIcons();
+
     </script>
 </body>
 </html>
