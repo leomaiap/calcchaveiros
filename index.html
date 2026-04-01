@@ -38,8 +38,8 @@
         <div class="max-w-md mx-auto">
             <div class="flex justify-between items-center mb-8">
                 <div>
-                    <h1 class="text-3xl font-black tracking-tighter text-blue-500 uppercase">Nexus <span class="text-white">3D</span></h1>
-                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">UFF • D.A. Drico (Sincronizado)</p>
+                    <h1 class="text-3xl font-black tracking-tighter text-blue-500 uppercase">Chaveiros <span class="text-white">3D</span></h1>
+                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">  </p>
                 </div>
                 <div class="bg-blue-500/10 p-3 rounded-2xl border border-blue-500/20 text-blue-500">
                     <i data-lucide="trending-up"></i>
@@ -104,30 +104,20 @@
         import { getFirestore, doc, setDoc, addDoc, onSnapshot, updateDoc, deleteDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        // --- Configurações ---
+        // --- Configurações do Projeto calc-5d61c ---
         let firebaseConfig;
         try {
-            // Tenta usar config do ambiente Gemini (Canvas)
-            firebaseConfig = {
-    apiKey: "AIzaSyBhN27-EhwsZ0YZYK4WIu49Bnr9e3RhvHs",
-    authDomain: "calc-5d61c.firebaseapp.com",
-    projectId: "calc-5d61c",
-    storageBucket: "calc-5d61c.firebasestorage.app",
-    messagingSenderId: "1036223426623",
-    appId: "1:1036223426623:web:5caee5c6f96394c271088a",
-    measurementId: "G-RVYXT9753B"
-  };
+            firebaseConfig = JSON.parse(__firebase_config);
         } catch (e) {
-            // SUBSTITUA PELAS SUAS CHAVES REAIS DO FIREBASE CONSOLE PARA FUNCIONAR NO GITHUB PAGES
             firebaseConfig = {
-    apiKey: "AIzaSyBhN27-EhwsZ0YZYK4WIu49Bnr9e3RhvHs",
-    authDomain: "calc-5d61c.firebaseapp.com",
-    projectId: "calc-5d61c",
-    storageBucket: "calc-5d61c.firebasestorage.app",
-    messagingSenderId: "1036223426623",
-    appId: "1:1036223426623:web:5caee5c6f96394c271088a",
-    measurementId: "G-RVYXT9753B"
-  };
+                apiKey: "AIzaSyBhN27-EhwsZ0YZYK4WIu49Bnr9e3RhvHs",
+                authDomain: "calc-5d61c.firebaseapp.com",
+                projectId: "calc-5d61c",
+                storageBucket: "calc-5d61c.firebasestorage.app",
+                messagingSenderId: "1036223426623",
+                appId: "1:1036223426623:web:5caee5c6f96394c271088a",
+                measurementId: "G-RVYXT9753B"
+            };
         }
 
         let db, auth;
@@ -136,26 +126,22 @@
         let state = { atual: 0, faturamento: 0, totalProduzido: 0 };
         let currentUser = null;
 
-        // Inicializa Firebase apenas se a chave não for a placeholder
-        const isConfigValid = firebaseConfig.apiKey && firebaseConfig.apiKey !== "SUA_API_KEY";
-
-        if (isConfigValid) {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    currentUser = user;
-                    initData();
-                } else {
-                    signInAnonymously(auth).catch(err => console.error("Erro Auth:", err));
-                }
-            });
-        } else {
-            console.warn("Firebase não configurado. Use chaves reais para persistência.");
-            document.getElementById('logs-container').innerHTML = '<p class="text-center text-red-500 py-10 text-xs font-bold uppercase">Erro: Firebase não configurado</p>';
-        }
+        // Inicializa Firebase
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+        
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                initData();
+            } else {
+                signInAnonymously(auth).catch(err => {
+                    console.error("Erro Auth:", err);
+                    showToast("Erro de Autenticação", "bg-red-500");
+                });
+            }
+        });
 
         // --- Funções Globais (Expostas para o HTML) ---
         
@@ -225,9 +211,11 @@
         // --- Core ---
 
         function initData() {
+            // Caminho público compartilhado para sincronização entre dispositivos
             const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
             const logsRef = collection(db, ...PUBLIC_PATH, 'logs');
 
+            // Escuta em tempo real do Inventário
             onSnapshot(invRef, (snap) => {
                 if (snap.exists()) {
                     state = snap.data();
@@ -237,6 +225,7 @@
                 }
             });
 
+            // Escuta em tempo real dos Logs
             onSnapshot(logsRef, (snap) => {
                 const logs = [];
                 snap.forEach(d => logs.push({ id: d.id, ...d.data() }));
@@ -269,9 +258,9 @@
                     </div>
                     <div class="flex flex-col items-end gap-1">
                         <p class="text-sm font-black ${log.tipo === 'VENDA' ? 'text-green-400' : 'text-orange-400'}">
-                            ${log.tipo === 'VENDA' ? `+R$ ${log.valor}` : 'STOCK'}
+                            ${log.tipo === 'VENDA' ? `+R$ ${log.valor}` : 'ESTOQUE'}
                         </p>
-                        <button onclick="window.confirmDeleteLog('${log.id}', '${log.tipo}', ${log.qtd}, ${log.valor || 0})" class="text-slate-700 hover:text-red-500 transition-colors p-1">
+                        <button onclick="window.confirmDeleteLog('${log.id}', '${log.tipo}', ${log.qtd}, ${log.valor || 0})" class="text-slate-600 hover:text-red-500 transition-colors p-1">
                             <i data-lucide="trash-2" style="width:14px; height:14px"></i>
                         </button>
                     </div>
@@ -290,7 +279,7 @@
             setTimeout(() => toast.classList.add('hidden'), 3000);
         }
 
-        // Criar botões de venda
+        // Gerar interface de botões
         const grid = document.getElementById('vendas-grid');
         [7, 14, 18, 24, 30, 36].forEach(v => {
             const btn = document.createElement('button');
@@ -298,7 +287,7 @@
             btn.onclick = () => window.handleVenda(v);
             btn.className = "group relative flex flex-col items-center justify-center bg-slate-800 hover:bg-blue-600 border border-slate-700 py-5 rounded-2xl transition-all active:scale-95";
             btn.innerHTML = `<span class="text-[10px] text-slate-500 group-hover:text-blue-200 font-black mb-1">R$</span><span class="text-2xl font-black group-hover:text-white leading-none">${v}</span>`;
-            if(v >= 18) btn.innerHTML += `<span class="absolute -top-2 left-1/2 -translate-x-1/2 bg-blue-500 text-[8px] font-black px-2 py-0.5 rounded-full text-white shadow-lg uppercase">Combo</span>`;
+            if(v >= 18) btn.innerHTML += `<span class="absolute -top-2 left-1/2 -translate-x-1/2 bg-blue-500 text-[8px] font-black px-2 py-0.5 rounded-full text-white shadow-lg uppercase tracking-tighter">Combo</span>`;
             grid.appendChild(btn);
         });
         lucide.createIcons();
