@@ -108,7 +108,15 @@
         // Se estiver no GitHub Pages, substitua {} pelas suas chaves do Firebase Console.
         let firebaseConfig;
         try {
-            firebaseConfig = JSON.parse(__firebase_config);
+            firebaseConfig = {
+    apiKey: "AIzaSyBhN27-EhwsZ0YZYK4WIu49Bnr9e3RhvHs",
+    authDomain: "calc-5d61c.firebaseapp.com",
+    projectId: "calc-5d61c",
+    storageBucket: "calc-5d61c.firebasestorage.app",
+    messagingSenderId: "1036223426623",
+    appId: "1:1036223426623:web:5caee5c6f96394c271088a",
+    measurementId: "G-RVYXT9753B"
+  };
         } catch (e) {
             // Cole aqui seu objeto firebaseConfig do console do Firebase se for usar fora deste chat
             firebaseConfig = {
