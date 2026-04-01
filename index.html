@@ -25,7 +25,7 @@
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl w-full max-w-xs shadow-2xl">
             <div class="text-red-500 mb-4 flex justify-center"><i data-lucide="alert-circle" size="48"></i></div>
             <h3 class="text-lg font-bold text-center mb-2">Anular Operação?</h3>
-            <p class="text-slate-400 text-sm text-center mb-6">O estoque e faturamento serão corrigidos.</p>
+            <p class="text-slate-400 text-sm text-center mb-6">O estoque e faturamento serão corrigidos em todos os dispositivos.</p>
             <div class="grid grid-cols-2 gap-3">
                 <button onclick="closeModal()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-colors">Voltar</button>
                 <button id="btn-confirm-delete" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-colors">Confirmar</button>
@@ -39,7 +39,7 @@
             <div class="flex justify-between items-center mb-8">
                 <div>
                     <h1 class="text-3xl font-black tracking-tighter text-blue-500 uppercase">Nexus <span class="text-white">3D</span></h1>
-                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">UFF • D.A. Drico</p>
+                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">UFF • D.A. Drico (Sincronizado)</p>
                 </div>
                 <div class="bg-blue-500/10 p-3 rounded-2xl border border-blue-500/20 text-blue-500">
                     <i data-lucide="trending-up"></i>
@@ -87,7 +87,7 @@
 
         <!-- Histórico -->
         <section class="bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl border border-slate-800">
-            <h2 class="text-xs font-black uppercase tracking-widest text-slate-300 mb-6">Histórico Recente</h2>
+            <h2 class="text-xs font-black uppercase tracking-widest text-slate-300 mb-6">Histórico em Tempo Real</h2>
             <div id="logs-container" class="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
                 <!-- Logs via JS -->
             </div>
@@ -104,25 +104,35 @@
         import { getFirestore, doc, setDoc, addDoc, onSnapshot, updateDoc, deleteDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        // --- Configuração Automática ---
-        const firebaseConfig = {
-    apiKey: "AIzaSyBhN27-EhwsZ0YZYK4WIu49Bnr9e3RhvHs",
-    authDomain: "calc-5d61c.firebaseapp.com",
-    projectId: "calc-5d61c",
-    storageBucket: "calc-5d61c.firebasestorage.app",
-    messagingSenderId: "1036223426623",
-    appId: "1:1036223426623:web:5caee5c6f96394c271088a",
-    measurementId: "G-RVYXT9753B"
-  };
+        // --- ATENÇÃO: CONFIGURAÇÃO PARA GITHUB PAGES ---
+        // Se estiver no GitHub Pages, substitua {} pelas suas chaves do Firebase Console.
+        let firebaseConfig;
+        try {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } catch (e) {
+            // Cole aqui seu objeto firebaseConfig do console do Firebase se for usar fora deste chat
+            firebaseConfig = {
+                apiKey: "SUA_API_KEY",
+                authDomain: "SEU_PROJETO.firebaseapp.com",
+                projectId: "SEU_PROJETO_ID",
+                storageBucket: "SEU_PROJETO.appspot.com",
+                messagingSenderId: "ID",
+                appId: "APP_ID"
+            };
+        }
+
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        
+        // Regra de Ouro: Para sincronizar PC e Celular, usamos o caminho 'public/data'
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexus-3d-uff';
+        const PUBLIC_PATH = ['artifacts', appId, 'public', 'data'];
 
         let state = { atual: 0, faturamento: 0, totalProduzido: 0 };
-        let currentUser = null;
+        let isAuthenticated = false;
 
-        // Iniciar Autenticação Anônima ou via Token
+        // Autenticação
         const initAuth = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -132,13 +142,12 @@
                 }
             } catch (err) {
                 console.error("Erro Auth:", err);
-                showToast("Erro de autenticação", "bg-red-500");
             }
         };
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                currentUser = user;
+                isAuthenticated = true;
                 initData();
             } else {
                 initAuth();
@@ -146,10 +155,11 @@
         });
 
         function initData() {
-            if (!currentUser) return;
+            if (!isAuthenticated) return;
 
-            const invRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'inventory', 'main');
-            const logsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'logs');
+            // Sincronização Global (PC e Celular usam o mesmo documento)
+            const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
+            const logsRef = collection(db, ...PUBLIC_PATH, 'logs');
 
             // Escutar Inventário
             onSnapshot(invRef, (snap) => {
@@ -157,6 +167,7 @@
                     state = snap.data();
                     renderStats();
                 } else {
+                    // Inicialização padrão
                     setDoc(invRef, { atual: 51, totalProduzido: 51, faturamento: 0 });
                 }
             }, (err) => console.error("Erro snapshot inv:", err));
@@ -165,6 +176,7 @@
             onSnapshot(logsRef, (snap) => {
                 const logs = [];
                 snap.forEach(d => logs.push({ id: d.id, ...d.data() }));
+                // Ordenar por data (Regra 2)
                 logs.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                 renderLogs(logs.slice(0, 30));
             }, (err) => console.error("Erro snapshot logs:", err));
@@ -179,7 +191,7 @@
 
         function renderLogs(logs) {
             const container = document.getElementById('logs-container');
-            container.innerHTML = logs.length ? '' : '<p class="text-center text-slate-700 py-10 italic text-sm">Nenhuma atividade...</p>';
+            container.innerHTML = logs.length ? '' : '<p class="text-center text-slate-700 py-10 italic text-sm">Aguardando vendas...</p>';
             
             logs.forEach(log => {
                 const date = log.timestamp?.toDate() ? log.timestamp.toDate().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '--:--';
@@ -207,27 +219,27 @@
             lucide.createIcons();
         }
 
-        // --- Lógica de Negócio ---
+        // --- Ações ---
         window.handleVenda = async (valor) => {
-            if (!currentUser) return;
+            if (!isAuthenticated) return;
             const qtd = valor >= 18 ? Math.floor(valor / 6) : Math.floor(valor / 7);
             if (state.atual < qtd) return showToast("Sem estoque!", "bg-red-500");
 
-            const invRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'inventory', 'main');
+            const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
             await updateDoc(invRef, { atual: state.atual - qtd, faturamento: state.faturamento + valor });
-            await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'logs'), {
+            await addDoc(collection(db, ...PUBLIC_PATH, 'logs'), {
                 tipo: 'VENDA', qtd, valor, timestamp: serverTimestamp()
             });
-            showToast("Venda Registrada!", "bg-green-500");
+            showToast("Venda Sincronizada!", "bg-green-500");
         };
 
         window.handleReposicao = async () => {
-            if (!currentUser) return;
+            if (!isAuthenticated) return;
             const qtd = Number(document.getElementById('input-reposicao').value);
             if(qtd <= 0) return;
-            const invRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'inventory', 'main');
+            const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
             await updateDoc(invRef, { atual: state.atual + qtd, totalProduzido: state.totalProduzido + qtd });
-            await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'logs'), {
+            await addDoc(collection(db, ...PUBLIC_PATH, 'logs'), {
                 tipo: 'REPOSICAO', qtd, timestamp: serverTimestamp()
             });
             showToast("Estoque Atualizado!", "bg-orange-500");
@@ -240,9 +252,9 @@
         };
 
         async function deleteLog(id, tipo, qtd, valor) {
-            if (!currentUser) return;
-            const invRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'inventory', 'main');
-            const logRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'logs', id);
+            if (!isAuthenticated) return;
+            const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
+            const logRef = doc(db, ...PUBLIC_PATH, 'logs', id);
             
             let update = { ...state };
             if (tipo === 'VENDA') { update.atual += qtd; update.faturamento -= valor; }
@@ -251,7 +263,7 @@
             await updateDoc(invRef, update);
             await deleteDoc(logRef);
             closeModal();
-            showToast("Registro Anulado!", "bg-blue-500");
+            showToast("Alteração desfeita!", "bg-blue-500");
         }
 
         window.closeModal = () => document.getElementById('modal-confirm').classList.add('hidden');
@@ -265,7 +277,7 @@
             setTimeout(() => toast.classList.add('hidden'), 3000);
         }
 
-        // Render Botões
+        // Renderização dos Botões
         const grid = document.getElementById('vendas-grid');
         [7, 14, 18, 24, 30, 36].forEach(v => {
             const btn = document.createElement('button');
