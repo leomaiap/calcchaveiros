@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus 3D Manager - UFF</title>
+    <title>Chaveiro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -14,253 +14,197 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen pb-10">
 
-    <!-- Feedback Flutuante -->
+    <!-- Toast Notification -->
     <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-[110] px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 hidden transition-all duration-300">
-        <span id="toast-icon"></span>
         <span id="toast-text" class="font-bold text-sm"></span>
     </div>
 
     <!-- Modal de Confirmação -->
     <div id="modal-confirm" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-6 hidden">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl w-full max-w-xs shadow-2xl">
-            <div class="text-red-500 mb-4 flex justify-center"><i data-lucide="alert-circle" size="48"></i></div>
-            <h3 class="text-lg font-bold text-center mb-2">Anular Operação?</h3>
-            <p class="text-slate-400 text-sm text-center mb-6">O estoque e faturamento serão corrigidos em todos os dispositivos.</p>
+            <div id="modal-icon" class="text-red-500 mb-4 flex justify-center"><i data-lucide="alert-circle" size="48"></i></div>
+            <h3 id="modal-title" class="text-lg font-bold text-center mb-2">Excluir Registro?</h3>
+            <p id="modal-desc" class="text-slate-400 text-sm text-center mb-6">Esta ação não pode ser desfeita.</p>
             <div class="grid grid-cols-2 gap-3">
-                <button onclick="window.closeModal()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-colors">Voltar</button>
-                <button id="btn-confirm-delete" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-colors">Confirmar</button>
+                <button onclick="window.closeModal()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-colors text-sm">Cancelar</button>
+                <button id="btn-confirm-delete" class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl transition-colors text-sm">Confirmar</button>
             </div>
         </div>
     </div>
 
-    <!-- Header -->
+    <!-- Header com Dashboard Calculado -->
     <header class="bg-slate-900 border-b border-slate-800 px-6 pt-10 pb-12 rounded-b-[3rem]">
         <div class="max-w-md mx-auto">
             <div class="flex justify-between items-center mb-8">
                 <div>
-                    <h1 class="text-3xl font-black tracking-tighter text-blue-500 uppercase">Chaveiros <span class="text-white">3D</span></h1>
-                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">  </p>
+                    <h1 class="text-3xl font-black tracking-tighter text-blue-500 uppercase">Chaveiro<span class="text-white">3D</span></h1>
+                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Fluxo de Caixa • UFF</p>
                 </div>
-                <div class="bg-blue-500/10 p-3 rounded-2xl border border-blue-500/20 text-blue-500">
-                    <i data-lucide="trending-up"></i>
+                <div id="sync-indicator" class="text-slate-600 animate-pulse">
+                    <i data-lucide="refresh-cw" size="20"></i>
                 </div>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div class="bg-slate-800/40 p-5 rounded-3xl border border-white/5 backdrop-blur-md text-center">
-                    <span class="text-[10px] font-bold text-slate-500 uppercase block mb-2 tracking-widest">Estoque</span>
-                    <span id="display-estoque" class="text-4xl font-black text-white">0</span>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase block mb-2 tracking-widest text-blue-400">Estoque Atual</span>
+                    <span id="display-estoque" class="text-4xl font-black text-white">--</span>
                 </div>
                 <div class="bg-slate-800/40 p-5 rounded-3xl border border-white/5 backdrop-blur-md text-center">
-                    <span class="text-[10px] font-bold text-slate-500 uppercase block mb-2 tracking-widest">Faturado</span>
-                    <div class="text-green-400 font-black"><span class="text-lg">R$</span> <span id="display-faturamento" class="text-4xl">0</span></div>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase block mb-2 tracking-widest text-green-400">Total Pix</span>
+                    <div class="text-green-400 font-black flex justify-center items-baseline gap-1">
+                        <span class="text-lg">R$</span> <span id="display-faturamento" class="text-4xl">--</span>
+                    </div>
                 </div>
             </div>
         </div>
     </header>
 
     <main class="max-w-md mx-auto px-6 -mt-8 space-y-6">
-        <!-- Vendas -->
+        
+        <!-- Vendas Rápidas -->
         <section class="bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl border border-slate-800">
-            <div class="flex items-center gap-2 mb-6 text-slate-300">
-                <i data-lucide="shopping-cart" class="text-blue-400" size="18"></i>
-                <h2 class="text-xs font-black uppercase tracking-widest">Registar Venda (Pix)</h2>
+            <div class="flex items-center gap-2 mb-6">
+                <i data-lucide="zap" class="text-yellow-400" size="18"></i>
+                <h2 class="text-xs font-black uppercase tracking-widest text-slate-300">Registrar Venda</h2>
             </div>
-            <div class="grid grid-cols-3 gap-3" id="vendas-grid">
-                <!-- Botões gerados via JavaScript -->
-            </div>
+            <div class="grid grid-cols-3 gap-3" id="vendas-grid"></div>
         </section>
 
-        <!-- Reposição -->
+        <!-- Entrada de Estoque -->
         <section class="bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl border border-slate-800">
-            <div class="flex items-center gap-2 mb-5 text-slate-300">
-                <i data-lucide="package" class="text-orange-400" size="18"></i>
-                <h2 class="text-xs font-black uppercase tracking-widest">Nova Bandeja</h2>
+            <div class="flex items-center gap-2 mb-5">
+                <i data-lucide="plus-circle" class="text-blue-400" size="18"></i>
+                <h2 class="text-xs font-black uppercase tracking-widest text-slate-300">Entrada de Bandeja</h2>
             </div>
             <div class="flex gap-3">
-                <input type="number" id="input-reposicao" value="0" class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4 text-white font-black text-xl outline-none focus:ring-2 focus:ring-orange-500 transition-all">
-                <button onclick="window.handleReposicao()" class="bg-orange-500 hover:bg-orange-600 text-white font-black px-8 rounded-2xl shadow-lg active:scale-95 transition-all">
+                <input type="number" id="input-reposicao" value="18" class="w-full bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4 text-white font-black text-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+                <button onclick="window.handleReposicao()" class="bg-blue-600 hover:bg-blue-500 text-white font-black px-8 rounded-2xl shadow-lg active:scale-95 transition-all">
                     <i data-lucide="plus"></i>
                 </button>
             </div>
         </section>
 
-        <!-- Histórico -->
+        <!-- Histórico (A base de todo o cálculo) -->
         <section class="bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl border border-slate-800">
-            <h2 class="text-xs font-black uppercase tracking-widest text-slate-300 mb-6">Histórico em Tempo Real</h2>
-            <div id="logs-container" class="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
-                <p class="text-center text-slate-700 py-10 italic text-sm">Carregando dados...</p>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xs font-black uppercase tracking-widest text-slate-300">Histórico de Fluxo</h2>
+                <span id="log-count" class="text-[10px] bg-slate-800 px-2 py-1 rounded-md text-slate-500 font-bold">0 logs</span>
             </div>
-            <div class="mt-10 pt-8 border-t border-slate-800/50 text-center text-slate-600">
-                <p class="text-[10px] font-black uppercase tracking-widest mb-1">Produção Total</p>
-                <p id="display-total" class="text-2xl font-black">0</p>
+            <div id="logs-container" class="space-y-4 max-h-[450px] overflow-y-auto pr-2 scrollbar-hide">
+                <p class="text-center text-slate-700 py-10 italic text-sm">Conectando ao banco de dados...</p>
+            </div>
+            <div class="mt-8 pt-6 border-t border-slate-800 text-center">
+                <p class="text-[10px] font-bold text-slate-600 uppercase tracking-[0.2em] mb-1">Produção Histórica</p>
+                <p id="display-total" class="text-xl font-black text-slate-400">--</p>
             </div>
         </section>
+
+        <!-- Ferramentas de Manutenção -->
+        <div class="flex flex-col items-center gap-4 py-6">
+            <button onclick="window.askMasterReset()" class="text-[10px] font-black uppercase tracking-[0.2em] text-red-900 hover:text-red-600 transition-colors flex items-center gap-2 border border-red-950 px-4 py-2 rounded-full">
+                <i data-lucide="trash-2" size="12"></i> Zerar Todo o Banco de Dados
+            </button>
+            <p class="text-center text-slate-800 text-[9px] font-black tracking-widest uppercase">
+                Nexus v2.0 • Sincronizado via Firestore
+            </p>
+        </div>
     </main>
 
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, addDoc, onSnapshot, updateDoc, deleteDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, deleteDoc, doc, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        // --- Configurações do Projeto calc-5d61c ---
-        let firebaseConfig;
-        try {
-            firebaseConfig = JSON.parse(__firebase_config);
-        } catch (e) {
-            firebaseConfig = {
-                apiKey: "AIzaSyBhN27-EhwsZ0YZYK4WIu49Bnr9e3RhvHs",
-                authDomain: "calc-5d61c.firebaseapp.com",
-                projectId: "calc-5d61c",
-                storageBucket: "calc-5d61c.firebasestorage.app",
-                messagingSenderId: "1036223426623",
-                appId: "1:1036223426623:web:5caee5c6f96394c271088a",
-                measurementId: "G-RVYXT9753B"
-            };
-        }
+        const firebaseConfig = {
+            apiKey: "AIzaSyBhN27-EhwsZ0YZYK4WIu49Bnr9e3RhvHs",
+            authDomain: "calc-5d61c.firebaseapp.com",
+            projectId: "calc-5d61c",
+            storageBucket: "calc-5d61c.firebasestorage.app",
+            messagingSenderId: "1036223426623",
+            appId: "1:1036223426623:web:5caee5c6f96394c271088a"
+        };
 
-        let db, auth;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexus-3d-uff';
-        const PUBLIC_PATH = ['artifacts', appId, 'public', 'data'];
-        let state = { atual: 0, faturamento: 0, totalProduzido: 0 };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        const appId = 'nexus-3d-uff';
+        const PATH = ['artifacts', appId, 'public', 'data', 'logs'];
+        
         let currentUser = null;
 
-        // Inicializa Firebase
-        const app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-        
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
-                initData();
+                startCalculatedListener();
             } else {
-                signInAnonymously(auth).catch(err => {
-                    console.error("Erro Auth:", err);
-                    showToast("Erro de Autenticação", "bg-red-500");
-                });
+                signInAnonymously(auth);
             }
         });
 
-        // --- Funções Globais (Expostas para o HTML) ---
-        
-        window.handleVenda = async (valor) => {
-            if (!currentUser) return showToast("Aguardando conexão...", "bg-yellow-500");
-            const qtd = valor >= 18 ? Math.floor(valor / 6) : Math.floor(valor / 7);
-            if (state.atual < qtd) return showToast("Sem estoque!", "bg-red-500");
+        function startCalculatedListener() {
+            const logsRef = collection(db, ...PATH);
+            
+            onSnapshot(logsRef, (snapshot) => {
+                let currentStock = 0;
+                let totalRevenue = 0;
+                let totalProduced = 0;
+                const logsList = [];
 
-            try {
-                const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
-                await updateDoc(invRef, { atual: state.atual - qtd, faturamento: state.faturamento + valor });
-                await addDoc(collection(db, ...PUBLIC_PATH, 'logs'), {
-                    tipo: 'VENDA', qtd, valor, timestamp: serverTimestamp()
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const log = { id: doc.id, ...data };
+                    logsList.push(log);
+
+                    if (data.tipo === 'VENDA') {
+                        currentStock -= data.qtd;
+                        totalRevenue += (data.valor || 0);
+                    } else if (data.tipo === 'REPOSICAO') {
+                        currentStock += data.qtd;
+                        totalProduced += data.qtd;
+                    }
                 });
-                showToast("Venda Sincronizada!", "bg-green-500");
-            } catch (e) {
-                console.error(e);
-                showToast("Erro ao salvar", "bg-red-500");
-            }
-        };
 
-        window.handleReposicao = async () => {
-            if (!currentUser) return showToast("Aguardando conexão...", "bg-yellow-500");
-            const input = document.getElementById('input-reposicao');
-            const qtd = Number(input.value);
-            if (qtd <= 0) return;
-
-            try {
-                const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
-                await updateDoc(invRef, { atual: state.atual + qtd, totalProduzido: state.totalProduzido + qtd });
-                await addDoc(collection(db, ...PUBLIC_PATH, 'logs'), {
-                    tipo: 'REPOSICAO', qtd, timestamp: serverTimestamp()
-                });
-                showToast("Estoque Atualizado!", "bg-orange-500");
-            } catch (e) {
-                showToast("Erro ao salvar", "bg-red-500");
-            }
-        };
-
-        window.confirmDeleteLog = (id, tipo, qtd, valor) => {
-            const modal = document.getElementById('modal-confirm');
-            modal.classList.remove('hidden');
-            document.getElementById('btn-confirm-delete').onclick = () => deleteLog(id, tipo, qtd, valor);
-        };
-
-        window.closeModal = () => document.getElementById('modal-confirm').classList.add('hidden');
-
-        async function deleteLog(id, tipo, qtd, valor) {
-            if (!currentUser) return;
-            try {
-                const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
-                const logRef = doc(db, ...PUBLIC_PATH, 'logs', id);
+                logsList.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                updateUI(currentStock, totalRevenue, totalProduced, logsList);
                 
-                let update = { ...state };
-                if (tipo === 'VENDA') { update.atual += qtd; update.faturamento -= valor; }
-                else { update.atual -= qtd; update.totalProduzido -= qtd; }
-
-                await updateDoc(invRef, update);
-                await deleteDoc(logRef);
-                closeModal();
-                showToast("Registro Removido!", "bg-blue-500");
-            } catch (e) {
-                showToast("Erro ao deletar", "bg-red-500");
-            }
-        }
-
-        // --- Core ---
-
-        function initData() {
-            // Caminho público compartilhado para sincronização entre dispositivos
-            const invRef = doc(db, ...PUBLIC_PATH, 'inventory', 'main');
-            const logsRef = collection(db, ...PUBLIC_PATH, 'logs');
-
-            // Escuta em tempo real do Inventário
-            onSnapshot(invRef, (snap) => {
-                if (snap.exists()) {
-                    state = snap.data();
-                    renderStats();
-                } else {
-                    setDoc(invRef, { atual: 51, totalProduzido: 51, faturamento: 0 });
-                }
-            });
-
-            // Escuta em tempo real dos Logs
-            onSnapshot(logsRef, (snap) => {
-                const logs = [];
-                snap.forEach(d => logs.push({ id: d.id, ...d.data() }));
-                logs.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-                renderLogs(logs.slice(0, 30));
+                const indicator = document.getElementById('sync-indicator');
+                indicator.classList.remove('animate-pulse', 'text-slate-600');
+                indicator.classList.add('text-green-500');
             });
         }
 
-        function renderStats() {
-            document.getElementById('display-estoque').innerText = state.atual;
-            document.getElementById('display-faturamento').innerText = state.faturamento;
-            document.getElementById('display-total').innerText = state.totalProduzido;
+        function updateUI(stock, revenue, produced, logs) {
+            document.getElementById('display-estoque').innerText = stock;
+            document.getElementById('display-faturamento').innerText = revenue;
+            document.getElementById('display-total').innerText = produced + " unidades";
+            document.getElementById('log-count').innerText = logs.length + " registros";
+            renderLogs(logs);
         }
 
         function renderLogs(logs) {
             const container = document.getElementById('logs-container');
-            container.innerHTML = logs.length ? '' : '<p class="text-center text-slate-700 py-10 italic text-sm">Sem vendas registradas.</p>';
+            container.innerHTML = logs.length ? '' : '<p class="text-center text-slate-700 py-10 italic text-sm">Nenhum registro. Comece adicionando uma carga.</p>';
             
             logs.forEach(log => {
-                const date = log.timestamp?.toDate() ? log.timestamp.toDate().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '--:--';
+                const date = log.timestamp?.toDate() ? log.timestamp.toDate().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '...';
                 const div = document.createElement('div');
-                div.className = "flex items-center gap-4 bg-slate-800/20 p-4 rounded-3xl border border-white/5 animate-in fade-in slide-in-from-right-4 duration-300";
+                div.className = "flex items-center gap-4 bg-slate-800/30 p-4 rounded-3xl border border-white/5 transition-all hover:bg-slate-800/50 mb-3";
                 div.innerHTML = `
-                    <div class="w-10 h-10 rounded-2xl flex items-center justify-center ${log.tipo === 'VENDA' ? 'bg-green-500/10 text-green-500' : 'bg-orange-500/10 text-orange-500'}">
-                        <i data-lucide="${log.tipo === 'VENDA' ? 'shopping-cart' : 'plus'}"></i>
+                    <div class="w-10 h-10 rounded-2xl flex items-center justify-center ${log.tipo === 'VENDA' ? 'bg-green-500/10 text-green-500' : 'bg-blue-500/10 text-blue-500'}">
+                        <i data-lucide="${log.tipo === 'VENDA' ? 'shopping-cart' : 'package'}"></i>
                     </div>
-                    <div class="flex-1">
-                        <p class="text-sm font-black">${log.tipo === 'VENDA' ? `Venda ${log.qtd} un.` : `Reposição +${log.qtd}`}</p>
-                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">${date}</p>
+                    <div class="flex-1 text-left">
+                        <p class="text-sm font-black">${log.tipo === 'VENDA' ? `Venda Pix` : `Carga de Estoque`}</p>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase">${log.qtd} Peças • ${date}</p>
                     </div>
                     <div class="flex flex-col items-end gap-1">
-                        <p class="text-sm font-black ${log.tipo === 'VENDA' ? 'text-green-400' : 'text-orange-400'}">
-                            ${log.tipo === 'VENDA' ? `+R$ ${log.valor}` : 'ESTOQUE'}
+                        <p class="text-sm font-black ${log.tipo === 'VENDA' ? 'text-green-400' : 'text-blue-400'}">
+                            ${log.tipo === 'VENDA' ? `+R$ ${log.valor}` : 'ENTRADA'}
                         </p>
-                        <button onclick="window.confirmDeleteLog('${log.id}', '${log.tipo}', ${log.qtd}, ${log.valor || 0})" class="text-slate-600 hover:text-red-500 transition-colors p-1">
+                        <button onclick="window.askDelete('${log.id}')" class="text-slate-700 hover:text-red-500 transition-colors p-1">
                             <i data-lucide="trash-2" style="width:14px; height:14px"></i>
                         </button>
                     </div>
@@ -270,20 +214,72 @@
             lucide.createIcons();
         }
 
+        // --- Ações ---
+
+        window.handleVenda = async (valor) => {
+            if (!currentUser) return;
+            const qtd = valor >= 18 ? Math.floor(valor / 6) : Math.floor(valor / 7);
+            await addDoc(collection(db, ...PATH), { tipo: 'VENDA', qtd, valor, timestamp: serverTimestamp() });
+            showToast("Venda registrada!", "bg-green-600");
+        };
+
+        window.handleReposicao = async () => {
+            const input = document.getElementById('input-reposicao');
+            const qtd = Number(input.value);
+            if (qtd <= 0) return;
+            await addDoc(collection(db, ...PATH), { tipo: 'REPOSICAO', qtd, timestamp: serverTimestamp() });
+            showToast(`Estoque abastecido: +${qtd}`, "bg-blue-600");
+        };
+
+        window.askDelete = (id) => {
+            const modal = document.getElementById('modal-confirm');
+            document.getElementById('modal-title').innerText = "Excluir Registro?";
+            document.getElementById('modal-desc').innerText = "O estoque e faturamento serão recalculados.";
+            modal.classList.remove('hidden');
+            document.getElementById('btn-confirm-delete').onclick = () => deleteLog(id);
+        };
+
+        async function deleteLog(id) {
+            await deleteDoc(doc(db, ...PATH, id));
+            window.closeModal();
+            showToast("Registro removido.", "bg-slate-700");
+        }
+
+        // MASTER RESET: Apaga todos os documentos da coleção
+        window.askMasterReset = () => {
+            const modal = document.getElementById('modal-confirm');
+            document.getElementById('modal-title').innerText = "ZERAR TUDO?";
+            document.getElementById('modal-desc').innerText = "Isso apagará TODO o histórico e resetará o estoque para zero. Esta ação é irreversível!";
+            modal.classList.remove('hidden');
+            document.getElementById('btn-confirm-delete').onclick = masterReset;
+        };
+
+        async function masterReset() {
+            showToast("Limpando banco...", "bg-red-600");
+            const logsRef = collection(db, ...PATH);
+            const snapshot = await getDocs(logsRef);
+            
+            const promises = snapshot.docs.map(d => deleteDoc(doc(db, ...PATH, d.id)));
+            await Promise.all(promises);
+            
+            window.closeModal();
+            showToast("Banco de dados zerado com sucesso!", "bg-green-600");
+        }
+
+        window.closeModal = () => document.getElementById('modal-confirm').classList.add('hidden');
+
         function showToast(text, bgColor) {
             const toast = document.getElementById('toast');
-            const textEl = document.getElementById('toast-text');
-            toast.className = `fixed top-4 left-1/2 -translate-x-1/2 z-[110] px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 ${bgColor} animate-bounce`;
-            textEl.innerText = text;
+            toast.className = `fixed top-4 left-1/2 -translate-x-1/2 z-[110] px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 ${bgColor} animate-in fade-in slide-in-from-top-4`;
+            document.getElementById('toast-text').innerText = text;
             toast.classList.remove('hidden');
             setTimeout(() => toast.classList.add('hidden'), 3000);
         }
 
-        // Gerar interface de botões
+        // Inicia Botões
         const grid = document.getElementById('vendas-grid');
         [7, 14, 18, 24, 30, 36].forEach(v => {
             const btn = document.createElement('button');
-            btn.type = "button";
             btn.onclick = () => window.handleVenda(v);
             btn.className = "group relative flex flex-col items-center justify-center bg-slate-800 hover:bg-blue-600 border border-slate-700 py-5 rounded-2xl transition-all active:scale-95";
             btn.innerHTML = `<span class="text-[10px] text-slate-500 group-hover:text-blue-200 font-black mb-1">R$</span><span class="text-2xl font-black group-hover:text-white leading-none">${v}</span>`;
@@ -291,7 +287,6 @@
             grid.appendChild(btn);
         });
         lucide.createIcons();
-
     </script>
 </body>
 </html>
